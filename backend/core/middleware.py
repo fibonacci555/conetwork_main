@@ -5,7 +5,7 @@ from jwt.algorithms import RSAAlgorithm
 from django.http import JsonResponse
 
 # Replace this URL with your actual Clerk JWKS URL
-CLERK_JWKS_URL = "https://abcd123.clerk.accounts.dev/.well-known/jwks.json"  # Replace 'abcd123' with your Clerk subdomain
+CLERK_JWKS_URL = "https://heroic-peacock-51.clerk.accounts.dev/.well-known/jwks.json"  # Replace 'abcd123' with your Clerk subdomain
 
 def clerk_auth_middleware(get_response):
     def middleware(request):

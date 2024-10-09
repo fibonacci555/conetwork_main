@@ -1,7 +1,7 @@
 "use client";
 import { Sidebar, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
 import { RedirectToSignIn, SignedIn, SignedOut, UserButton, useUser, useAuth } from '@clerk/nextjs';
-import { IconArrowLeft, IconBrandTabler, IconSettings, IconUserBolt } from '@tabler/icons-react';
+import { IconArrowLeft, IconBrandTabler, IconPlus, IconSettings, IconUserBolt } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import { Logo, LogoIcon } from '../page';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,13 @@ const Profile = () => {
             href: "/conetwork/profile",
             icon: (
                 <IconUserBolt className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
+            ),
+        },
+        {
+            label: "Add Connect",
+            href: "/conetwork/add-connect",
+            icon: (
+                <IconPlus className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
             ),
         },
         {

@@ -3,8 +3,8 @@ from django.db import models
 # Perfil do Utilizador
 class UserProfile(models.Model):
     user_id = models.CharField(max_length=255, unique=True)  # O ID do utilizador Clerk
-    first_name = models.CharField(max_length=255, blank=True, null=True)  # Make optional
-    last_name = models.CharField(max_length=255, blank=True, null=True)   # Make optional
+    first_name = models.CharField(max_length=255, blank=True, null=True)  # Made optional
+    last_name = models.CharField(max_length=255, blank=True, null=True)   # Made optional
     phone = models.CharField(max_length=255, blank=True, null=True)
     knowledges = models.JSONField(default=list, blank=True, null=True)  # Campo para armazenar conhecimentos (array de strings)
     connects = models.ManyToManyField('self', symmetrical=False, related_name='connections', blank=True)
