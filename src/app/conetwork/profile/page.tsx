@@ -1,6 +1,6 @@
 "use client";
 import { Sidebar, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
-import { RedirectToSignIn, SignedIn, SignedOut, UserButton, useUser } from '@clerk/nextjs';
+import { RedirectToSignIn, SignedIn, SignedOut, UserButton, useUser, useAuth } from '@clerk/nextjs';
 import { IconArrowLeft, IconBrandTabler, IconSettings, IconUserBolt } from '@tabler/icons-react';
 import React, { useEffect, useState } from 'react';
 import { Logo, LogoIcon } from '../page';
@@ -84,16 +84,27 @@ export default Profile;
 
 const ProfileSection = () => {
     const { user } = useUser(); // Clerk user object
-    const [knowledges, setKnowledges] = useState([]);
+    const [knowledges, setKnowledges] = useState<string[]>([]);
     const [input, setInput] = useState("");
+    const { getToken } = useAuth();
 
-    // Obter conhecimentos do utilizador ao carregar a página
+    // Set Axios defaults
+    useEffect(() => {
+        const setAxiosDefaults = async () => {
+            const token = await getToken();
+            axios.defaults.baseURL = 'http://localhost:8000'; // Ensure the baseURL points to your Django server
+            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        };
+        setAxiosDefaults();
+    }, [getToken]);
+
+    // Fetch knowledges when component mounts
     useEffect(() => {
         const fetchKnowledges = async () => {
             try {
-                const response = await axios.get(`/api/knowledges/${user.id}`);
+                const response = await axios.get('http://localhost:8000/api/knowledges/');
                 if (response.data) {
-                    setKnowledges(response.data.knowledges);
+                    setKnowledges(response.data);
                 }
             } catch (error) {
                 console.error("Erro ao obter conhecimentos:", error);
@@ -105,21 +116,34 @@ const ProfileSection = () => {
         }
     }, [user]);
 
-    // Função para adicionar um novo conhecimento
+    // Function to add a new knowledge
     const handleAddKnowledge = async () => {
         if (input.trim() === "") return;
 
-        const updatedKnowledges = [...knowledges, input.trim()];
-        setKnowledges(updatedKnowledges);
+        const knowledgeToAdd = input.trim();
         setInput("");
 
         try {
-            await axios.post('/api/knowledges/update', {
-                userId: user.id,
-                knowledges: updatedKnowledges,
+            await axios.put('http://localhost:8000/api/knowledges/', {
+                knowledge: knowledgeToAdd,
             });
+            // Update local state
+            setKnowledges([...knowledges, knowledgeToAdd]);
         } catch (error) {
-            console.error("Erro ao atualizar conhecimentos:", error);
+            console.error("Erro ao adicionar conhecimento:", error);
+        }
+    };
+
+    // Function to remove a knowledge
+    const handleRemoveKnowledge = async (knowledgeToRemove: string) => {
+        try {
+            await axios.delete('http://localhost:8000/api/knowledges/', {
+                data: { knowledge: knowledgeToRemove },
+            });
+            // Update local state
+            setKnowledges(knowledges.filter((k) => k !== knowledgeToRemove));
+        } catch (error) {
+            console.error("Erro ao remover conhecimento:", error);
         }
     };
 
@@ -128,34 +152,6 @@ const ProfileSection = () => {
             <div className="p-6 md:p-12 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-6 flex-1 w-full h-full relative">
                 {/* Título da Página */}
                 <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-8">Edit Profile</h1>
-
-                {/* Seção de Informações Básicas do Perfil */}
-                <div className="flex flex-col md:flex-row gap-6 items-center">
-                    {/* Foto de Perfil */}
-                    <UserButton />
-                    
-                    {/* Nome e Email */}
-                    <div className="flex flex-col gap-4 w-full">
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Full Name</label>
-                            <input
-                                type="text"
-                                value={user?.fullName || ""}
-                                readOnly
-                                className="w-full mt-1 p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border border-neutral-300 dark:border-neutral-600"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">Email Address</label>
-                            <input
-                                type="email"
-                                value={user?.primaryEmailAddress?.emailAddress || ""}
-                                readOnly
-                                className="w-full mt-1 p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border border-neutral-300 dark:border-neutral-600"
-                            />
-                        </div>
-                    </div>
-                </div>
 
                 {/* Seção de Conhecimentos */}
                 <div className="mt-10">
@@ -176,41 +172,27 @@ const ProfileSection = () => {
                                 Add
                             </button>
                         </div>
-                        
+
                         {/* Lista de Conhecimentos */}
                         <ul className="mt-4">
-                            {knowledges.map((knowledge, idx) => (
-                                <li key={idx} className="flex justify-between items-center p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-300 dark:border-neutral-700">
-                                    <span>{knowledge}</span>
-                                    {/* Botão para Remover Conhecimento */}
-                                    <button
-                                        onClick={() => {
-                                            const updatedKnowledges = knowledges.filter((_, i) => i !== idx);
-                                            setKnowledges(updatedKnowledges);
-                                            // Atualiza no backend
-                                            axios.post('/api/knowledges/update', {
-                                                userId: user.id,
-                                                knowledges: updatedKnowledges,
-                                            });
-                                        }}
-                                        className="text-red-500 hover:text-red-700"
-                                    >
-                                        Remove
-                                    </button>
-                                </li>
-                            ))}
+                            {knowledges && knowledges.length > 0 ? (
+                                knowledges.map((knowledge, idx) => (
+                                    <li key={idx} className="flex justify-between items-center p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-300 dark:border-neutral-700">
+                                        <span>{knowledge}</span>
+                                        {/* Botão para Remover Conhecimento */}
+                                        <button
+                                            onClick={() => handleRemoveKnowledge(knowledge)}
+                                            className="text-red-500 hover:text-red-700"
+                                        >
+                                            Remove
+                                        </button>
+                                    </li>
+                                ))
+                            ) : (
+                                <p>No knowledges added yet.</p>
+                            )}
                         </ul>
                     </div>
-                </div>
-
-                {/* Botões de Ação */}
-                <div className="flex justify-end gap-4 mt-10">
-                    <button className="px-6 py-3 rounded-md bg-gray-300 dark:bg-gray-700 text-black dark:text-white">
-                        Cancel
-                    </button>
-                    <button className="px-6 py-3 rounded-md bg-blue-500 text-white hover:bg-blue-600">
-                        Save Changes
-                    </button>
                 </div>
             </div>
         </div>
