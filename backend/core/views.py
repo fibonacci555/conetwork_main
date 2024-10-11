@@ -1,8 +1,56 @@
+import random
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import UserProfile, FriendRequest
 from .serializers import UserProfileSerializer, FriendRequestSerializer
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from .models import UserProfile, FriendRequest
+from .serializers import FriendRequestSerializer
+from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
+
+
+
+class UserConnectionsCountView(APIView):
+    permission_classes = [IsAuthenticated]
+    print(permission_classes)
+    def get(self, request, user_id):
+        user_profile = get_object_or_404(UserProfile, user_id=user_id)
+        connections_count = user_profile.connects.count()
+        return Response({'connections_count': connections_count}, status=status.HTTP_200_OK)
+
+
+
+class AddManualConnectView(APIView):
+    def post(self, request):
+        # Extract the current user's ID from the headers (after being authenticated by the middleware)
+        current_user_id = request.headers.get('User-Id')
+        current_user = get_object_or_404(UserProfile, user_id=current_user_id)
+
+        # Generate a unique user_id for the new profile
+        new_user_id = f"manual_{random.randint(10000, 99999)}"
+        new_connection_data = {
+            "user_id": new_user_id,
+            "first_name": request.data.get("first_name"),
+            "last_name": request.data.get("last_name"),
+            "phone": request.data.get("phone_number"),
+            "knowledges": request.data.get("knowledges", "").split(","),
+        }
+
+        serializer = UserProfileSerializer(data=new_connection_data)
+        if serializer.is_valid():
+            new_profile = serializer.save()
+
+            # Add the new connection to the current user's connections
+            current_user.connects.add(new_profile)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class KnowledgeView(APIView):
     def get(self, request):
@@ -73,63 +121,49 @@ class UserProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Views for managing friend requests remain unchanged unless needed
-class FriendRequestView(APIView):
+class SendFriendRequestView(APIView):
     def post(self, request):
         from_user_id = request.data.get('from_user_id')
         to_user_id = request.data.get('to_user_id')
 
         if not from_user_id or not to_user_id:
-            return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Both from_user_id and to_user_id are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            from_user = UserProfile.objects.get(user_id=from_user_id)
-            to_user = UserProfile.objects.get(user_id=to_user_id)
+        from_user = get_object_or_404(UserProfile, user_id=from_user_id)
+        to_user = get_object_or_404(UserProfile, user_id=to_user_id)
 
-            # Evitar enviar pedido de amizade se já existir uma conexão
-            if from_user.connects.filter(user_id=to_user_id).exists():
-                return Response({'error': 'Users are already connected'}, status=status.HTTP_400_BAD_REQUEST)
+        # Verificar se o pedido já existe
+        if FriendRequest.objects.filter(from_user=from_user, to_user=to_user, status='pending').exists():
+            return Response({'message': 'Friend request already sent.'}, status=status.HTTP_200_OK)
 
-            # Criar o pedido de amizade
-            friend_request, created = FriendRequest.objects.get_or_create(from_user=from_user, to_user=to_user)
+        # Criar pedido de amizade
+        friend_request = FriendRequest.objects.create(from_user=from_user, to_user=to_user)
+        serializer = FriendRequestSerializer(friend_request)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-            if created:
-                serializer = FriendRequestSerializer(friend_request)
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            else:
-                return Response({'message': 'Friend request already sent'}, status=status.HTTP_200_OK)
-        except UserProfile.DoesNotExist:
-            return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
+# View para responder ao pedido de conexão (aceitar ou recusar)
+class RespondToFriendRequestView(APIView):
+    def post(self, request, request_id):
+        action = request.data.get('action')
+        friend_request = get_object_or_404(FriendRequest, id=request_id)
 
-    def get(self, request):
-        user_id = request.headers.get('User-Id')
-        if not user_id:
-            return Response({'error': 'User ID is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if action == 'accept':
+            friend_request.status = 'accepted'
+            friend_request.from_user.connects.add(friend_request.to_user)
+            friend_request.to_user.connects.add(friend_request.from_user)
+            friend_request.save()
+            return Response({'message': 'Friend request accepted.'}, status=status.HTTP_200_OK)
+        elif action == 'decline':
+            friend_request.status = 'rejected'
+            friend_request.save()
+            return Response({'message': 'Friend request declined.'}, status=status.HTTP_200_OK)
+        else:
+            return Response({'error': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            user_profile = UserProfile.objects.get(user_id=user_id)
-            friend_requests = FriendRequest.objects.filter(to_user=user_profile)
-            serializer = FriendRequestSerializer(friend_requests, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except UserProfile.DoesNotExist:
-            return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
-# View para aceitar pedidos de amizade
-class AcceptFriendRequestView(APIView):
-    def post(self, request):
-        request_id = request.data.get('request_id')
-
-        try:
-            friend_request = FriendRequest.objects.get(id=request_id)
-            from_user = friend_request.from_user
-            to_user = friend_request.to_user
-
-            # Adicionar a conexão em ambos perfis
-            from_user.connects.add(to_user)
-            to_user.connects.add(from_user)
-
-            # Remover o pedido de amizade após aceitar
-            friend_request.delete()
-
-            return Response({'message': 'Friend request accepted'}, status=status.HTTP_200_OK)
-        except FriendRequest.DoesNotExist:
-            return Response({'error': 'Friend request not found'}, status=status.HTTP_404_NOT_FOUND)
+# View para listar pedidos pendentes
+class ListFriendRequestsView(APIView):
+    def get(self, request, user_id):
+        user = get_object_or_404(UserProfile, user_id=user_id)
+        friend_requests = FriendRequest.objects.filter(to_user=user, status='pending')
+        serializer = FriendRequestSerializer(friend_requests, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

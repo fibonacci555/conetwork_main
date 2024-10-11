@@ -1,207 +1,126 @@
-"use client";
-import { Sidebar, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
-import { RedirectToSignIn, SignedIn, SignedOut, UserButton, useUser, useAuth } from '@clerk/nextjs';
-import { IconArrowLeft, IconBrandTabler, IconPlus, IconSettings, IconUserBolt } from '@tabler/icons-react';
-import React, { useEffect, useState } from 'react';
-import { Logo, LogoIcon } from '../page';
-import { cn } from '@/lib/utils';
-import axios from 'axios';
+"use client"
 
-const Profile = () => {
-    const links = [
-        {
-            label: "Dashboard",
-            href: "/conetwork",
-            icon: (
-                <IconBrandTabler className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Knowledges",
-            href: "/conetwork/profile",
-            icon: (
-                <IconUserBolt className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Add Connect",
-            href: "/conetwork/add-connect",
-            icon: (
-                <IconPlus className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Settings",
-            href: "/conetwork/settings",
-            icon: (
-                <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-    ];
+import { useState, useEffect } from 'react'
+import { useUser, useAuth, UserButton } from '@clerk/nextjs'
+import axios from 'axios'
+import { Edit2, Plus, X } from 'lucide-react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import NavBar from '@/components/NavBar'
 
-    const [open, setOpen] = useState(false);
+export default function Profile() {
+  const { user } = useUser()
+  const { getToken } = useAuth()
+  const [knowledges, setKnowledges] = useState<string[]>([])
+  const [input, setInput] = useState("")
+  const [profileTitle, setProfileTitle] = useState("My Profile")
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
 
-    return (
-        <>
-            <SignedIn>
-                <div
-                    className={cn(
-                        "rounded-md flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1 mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-                        "h-screen" // Usando `h-screen` para ocupar a altura inteira da tela
-                    )}
-                >
-                    <Sidebar open={open} setOpen={setOpen}>
-                        <SidebarBody className="justify-between gap-10">
-                            <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-                                {open ? <Logo /> : <LogoIcon />}
-                                <div className="mt-8 flex flex-col gap-2">
-                                    {links.map((link, idx) => (
-                                        <SidebarLink key={idx} link={link} />
-                                    ))}
-                                    {/* Link de Logout */}
-                                    <button
-                                        onClick={() => {
-                                            localStorage.clear();
-                                            window.location.href = "/"; // Redirecionar para a página inicial após logout
-                                        }}
-                                        className="flex items-center p-2 text-sm font-medium text-neutral-700 dark:text-neutral-200 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 w-full text-left"
-                                    >
-                                        <IconArrowLeft className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-                                        <span className="ml-3">Logout</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <UserButton />
-                            </div>
-                        </SidebarBody>
-                    </Sidebar>
-                    <ProfileSection />
-                </div>
-            </SignedIn>
-            <SignedOut>
-                {/* Redireciona para a página de login se o utilizador não estiver autenticado */}
-                <RedirectToSignIn />
-            </SignedOut>
-        </>
-    );
-};
+  useEffect(() => {
+    const setAxiosDefaults = async () => {
+      const token = await getToken()
+      axios.defaults.baseURL = 'http://localhost:8000'
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    }
+    setAxiosDefaults()
+  }, [getToken])
 
-export default Profile;
-
-const ProfileSection = () => {
-    const { user } = useUser(); // Clerk user object
-    const [knowledges, setKnowledges] = useState<string[]>([]);
-    const [input, setInput] = useState("");
-    const { getToken } = useAuth();
-
-    // Set Axios defaults
-    useEffect(() => {
-        const setAxiosDefaults = async () => {
-            const token = await getToken();
-            axios.defaults.baseURL = 'http://localhost:8000'; // Ensure the baseURL points to your Django server
-            axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        };
-        setAxiosDefaults();
-    }, [getToken]);
-
-    // Fetch knowledges when component mounts
-    useEffect(() => {
-        const fetchKnowledges = async () => {
-            try {
-                const response = await axios.get('http://localhost:8000/api/knowledges/');
-                if (response.data) {
-                    setKnowledges(response.data);
-                }
-            } catch (error) {
-                console.error("Erro ao obter conhecimentos:", error);
-            }
-        };
-
-        if (user?.id) {
-            fetchKnowledges();
+  useEffect(() => {
+    const fetchKnowledges = async () => {
+      try {
+        const response = await axios.get('/api/knowledges/')
+        if (response.data) {
+          setKnowledges(response.data)
         }
-    }, [user]);
+      } catch (error) {
+        console.error("Error fetching knowledges:", error)
+      }
+    }
 
-    // Function to add a new knowledge
-    const handleAddKnowledge = async () => {
-        if (input.trim() === "") return;
+    if (user?.id) {
+      fetchKnowledges()
+    }
+  }, [user])
 
-        const knowledgeToAdd = input.trim();
-        setInput("");
+  const handleAddKnowledge = async () => {
+    if (input.trim() === "") return
+    const knowledgeToAdd = input.trim()
+    setInput("")
 
-        try {
-            await axios.put('http://localhost:8000/api/knowledges/', {
-                knowledge: knowledgeToAdd,
-            });
-            // Update local state
-            setKnowledges([...knowledges, knowledgeToAdd]);
-        } catch (error) {
-            console.error("Erro ao adicionar conhecimento:", error);
-        }
-    };
+    try {
+      await axios.put('/api/knowledges/', { knowledge: knowledgeToAdd })
+      setKnowledges([...knowledges, knowledgeToAdd])
+    } catch (error) {
+      console.error("Error adding knowledge:", error)
+    }
+  }
 
-    // Function to remove a knowledge
-    const handleRemoveKnowledge = async (knowledgeToRemove: string) => {
-        try {
-            await axios.delete('http://localhost:8000/api/knowledges/', {
-                data: { knowledge: knowledgeToRemove },
-            });
-            // Update local state
-            setKnowledges(knowledges.filter((k) => k !== knowledgeToRemove));
-        } catch (error) {
-            console.error("Erro ao remover conhecimento:", error);
-        }
-    };
+  const handleRemoveKnowledge = async (knowledgeToRemove: string) => {
+    try {
+      await axios.delete('/api/knowledges/', { data: { knowledge: knowledgeToRemove } })
+      setKnowledges(knowledges.filter((k) => k !== knowledgeToRemove))
+    } catch (error) {
+      console.error("Error removing knowledge:", error)
+    }
+  }
 
-    return (
-        <div className="flex flex-1">
-            <div className="p-6 md:p-12 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-6 flex-1 w-full h-full relative">
-                {/* Título da Página */}
-                <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-8">Edit Profile</h1>
-
-                {/* Seção de Conhecimentos */}
-                <div className="mt-10">
-                    <h2 className="text-2xl font-bold mb-4 text-neutral-900 dark:text-white">Knowledges</h2>
-                    <div className="flex flex-col gap-4">
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Add a new knowledge"
-                                className="flex-1 p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 text-black dark:text-white border border-neutral-300 dark:border-neutral-600"
-                            />
-                            <button
-                                onClick={handleAddKnowledge}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-md"
-                            >
-                                Add
-                            </button>
-                        </div>
-
-                        {/* Lista de Conhecimentos */}
-                        <ul className="mt-4">
-                            {knowledges && knowledges.length > 0 ? (
-                                knowledges.map((knowledge, idx) => (
-                                    <li key={idx} className="flex justify-between items-center p-3 rounded-md bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-300 dark:border-neutral-700">
-                                        <span>{knowledge}</span>
-                                        {/* Botão para Remover Conhecimento */}
-                                        <button
-                                            onClick={() => handleRemoveKnowledge(knowledge)}
-                                            className="text-red-500 hover:text-red-700"
-                                        >
-                                            Remove
-                                        </button>
-                                    </li>
-                                ))
-                            ) : (
-                                <p>No knowledges added yet.</p>
-                            )}
-                        </ul>
-                    </div>
-                </div>
+  return (
+    <NavBar>
+      <div className="container mx-auto px-4 py-8">
+        <Card className="w-full max-w-3xl mx-auto">
+          <CardHeader>
+          
+            <div className="flex items-center justify-between">
+              
+                <CardTitle className="text-2xl font-bold">{profileTitle}</CardTitle>
+                <UserButton />
+              
+              
             </div>
-        </div>
-    );
-};
+          </CardHeader>
+          <CardContent>
+            <h2 className="text-xl font-semibold mb-4">Your Knowledges</h2>
+            <p className="text-muted-foreground mb-6">
+              Share the skills and knowledge you want others to recognize in you.
+            </p>
+            <div className="flex gap-2 mb-6">
+              <Input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Add a new knowledge"
+                className="flex-1"
+              />
+              <Button onClick={handleAddKnowledge}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add
+              </Button>
+            </div>
+            {knowledges.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {knowledges.map((knowledge, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-sm py-1 px-2">
+                    {knowledge}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-2 h-4 w-4 p-0"
+                      onClick={() => handleRemoveKnowledge(knowledge)}
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Remove {knowledge}</span>
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No knowledges added yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </NavBar>
+  )
+}

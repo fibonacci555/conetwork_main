@@ -8,6 +8,7 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=255, blank=True, null=True)
     knowledges = models.JSONField(default=list, blank=True, null=True)  # Campo para armazenar conhecimentos (array de strings)
     connects = models.ManyToManyField('self', symmetrical=False, related_name='connections', blank=True)
+    
 
     @property
     def full_name(self):
@@ -21,6 +22,7 @@ class FriendRequest(models.Model):
     from_user = models.ForeignKey(UserProfile, related_name='sent_requests', on_delete=models.CASCADE)
     to_user = models.ForeignKey(UserProfile, related_name='received_requests', on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=[('pending', 'Pending'), ('accepted', 'Accepted'), ('rejected', 'Rejected')], default='pending')
 
     def __str__(self):
-        return f"Friend request from {self.from_user.full_name} to {self.to_user.full_name}"
+        return f"Friend request from {self.from_user} to {self.to_user}"

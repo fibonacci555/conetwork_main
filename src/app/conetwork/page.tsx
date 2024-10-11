@@ -1,7 +1,6 @@
 "use client"
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { SignedIn, SignedOut, RedirectToSignIn, SignOutButton, UserButton } from '@clerk/clerk-react';
-import { useState } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
     IconArrowLeft,
@@ -16,7 +15,9 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import IconCloud from '@/components/ui/icon-cloud';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
-
+import NavBar from '@/components/NavBar';
+import axios from 'axios';
+import { useAuth } from '@clerk/nextjs';
 
 const slugs = [
     "typescript",
@@ -59,93 +60,87 @@ const slugs = [
     "androidstudio",
     "sonarqube",
     "figma",
-    "figma", "figma", "figma", "figma", "figma", "python", "c++", "c", "notion"
+    "figma", "figma", "figma", "figma", "figma", "python", "c++", "c", "notion","sql","excel","word","powerbi","sqlserver","mysql","oracle","postgresql","mongodb","firebase","redis","docker","git","jira","github","gitlab","visualstudiocode","androidstudio","sonarqube","figma","figma","figma","figma","figma","python","c++","c","notion"
 ];
 
+const Conetwork = () => {
+    const [connectionCount, setConnectionCount] = useState<number | null>(null);
+    const { getToken, userId } = useAuth();
 
-export function Conetwork() {
-    const links = [
-        {
-            label: "Dashboard",
-            href: "/conetwork",
-            icon: (
-                <IconBrandTabler className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Knowledges",
-            href: "/conetwork/profile",
-            icon: (
-                <IconUserBolt className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Add Connect",
-            href: "/conetwork/add-connect",
-            icon: (
-                <IconPlus className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-        {
-            label: "Settings",
-            href: "/conetwork/settings",
-            icon: (
-                <IconSettings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-            ),
-        },
-    ];
-    const [open, setOpen] = useState(false);
+    useEffect(() => {
+        const fetchConnectionCount = async () => {
+            if (userId) {
+                try {
+                    const token = await getToken();
+                    if (!token) {
+                        console.error("Token not found");
+                        return;
+                    }
+                    
+                    const response = await axios.get(`http://localhost:8000/api/users/${userId}/connections-count/`, {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    });
+                    if (response.data) {
+                        setConnectionCount(response.data.connections_count);
+                    }
+                } catch (error) {
+                    console.error("Error fetching connection count:", error);
+                }
+            }
+        };
+
+        fetchConnectionCount();
+    }, [userId, getToken]);
+
     return (
         <>
-            <SignedIn>
-                <div
-                    className={cn(
-                        "rounded-md flex flex-col md:flex-row bg-gray-100 dark:bg-neutral-800 w-full flex-1  mx-auto border border-neutral-200 dark:border-neutral-700 overflow-hidden",
-                        "h-screen" // for your use case, use `h-screen` instead of `h-[60vh]`
-                    )}
-                >
-                    <Sidebar open={open} setOpen={setOpen}>
-                        <SidebarBody className="justify-between gap-10">
-                            <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-                                {open ? <Logo /> : <LogoIcon />}
-                                <div className="mt-8 flex flex-col gap-2">
-                                    {links.map((link, idx) => (
-                                        <SidebarLink key={idx} link={link} />
-                                    ))}
+            <NavBar>
+                <div className="flex flex-1">
+                    <div className="p-2 md:p-10 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full relative">
+                        {/* Campo de Pesquisa Estilo Spotlight */}
+                        <div className="absolute top-[55px] left-1/2 transform -translate-x-1/2 w-full max-w-xl z-20 justify-center px-10">
+                            <p className='text-sm justify-center ml-10 text-gray-400 mt-[-8px] mb-[5px]'>
+                                Describe what you need and our AI will find the best solution for you.
+                            </p>
+                            <PlaceholdersAndVanishInput
+                                placeholders={placeholders}
+                                onChange={handleChange}
+                                onSubmit={onSubmit}
+                            />
+                        </div>
+                        {/* Componente com IconCloud */}
+                        <div className="relative flex size-full items-center justify-center overflow-hidden rounded-lg border bg-background px-20 pb-20 pt-8">
+                            <IconCloud iconSlugs={slugs} />
+                            {/* Displaying the Connection Count */}
+                            {connectionCount !== null && (
+                                <div className="absolute bottom-4 right-4 p-2 rounded-lg bg-indigo-600 text-white">
+                                    Connections: {connectionCount}
                                 </div>
-                            </div>
-                            <div>
-                                <UserButton />
-                            </div>
-                        </SidebarBody>
-                    </Sidebar>
-                    <Dashboard />
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </SignedIn>
-            <SignedOut>
-                {/* Redireciona para a página de login se o utilizador não estiver autenticado */}
-                <RedirectToSignIn />
-            </SignedOut>
+            </NavBar>
         </>
     );
-}
+};
 
 const placeholders = [
     "I want to make a website...",
     "I need an accounting...",
     "I need to know the best way to buy a house...",
     "I want to buy the best laptop...",
-    
-  ];
- 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+];
+
+const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log(e.target.value);
-  };
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+};
+const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("submitted");
-  };
-
+};
 
 export default Conetwork;
 export const Logo = () => {
@@ -173,34 +168,5 @@ export const LogoIcon = () => {
         >
             <div className="h-5 w-6 bg-black dark:bg-white rounded-br-lg rounded-tr-sm rounded-tl-lg rounded-bl-sm flex-shrink-0" />
         </Link>
-    );
-};
-
-// Dummy dashboard component with content
-const Dashboard = () => {
-    return (
-
-        <div className="flex flex-1">
-            <div className="p-2 md:p-10 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex flex-col gap-2 flex-1 w-full h-full relative">
-
-                {/* Campo de Pesquisa Estilo Spotlight */}
-                <div className="absolute top-[55px] left-1/2 transform -translate-x-1/2 w-full max-w-xl z-20 justify-center">
-                    <p className='text-sm justify-center ml-10 text-gray-400 mt-[-8px] mb-[5px]'>Describe what you need and our AI will find the best solution for you.</p>
-                    <PlaceholdersAndVanishInput
-                        placeholders={placeholders}
-                        onChange={handleChange}
-                        onSubmit={onSubmit}
-                        
-                    />
-                </div>
-
-
-                {/* Componente com IconCloud */}
-                <div className="relative flex size-full items-center justify-center overflow-hidden rounded-lg border bg-background px-20 pb-20 pt-8">
-                    <IconCloud iconSlugs={slugs} />
-                </div>
-            </div>
-        </div>
-
     );
 };

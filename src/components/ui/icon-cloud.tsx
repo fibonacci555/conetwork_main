@@ -157,39 +157,44 @@ const NotificationCard = ({ slug, onClose }) => {
       onClose();
     }, 300); // Tempo deve corresponder à duração da animação
   };
+  const isMobile = window.innerWidth <= 768;
 
   return (
-
-
-
     <div
       style={{
-        position: "absolute",
-        top: "100px",
-        right: "20px",
-        width: "300px",
-        padding: "20px",
-        backgroundColor: "#fff",
-        color: "#000",
-        borderRadius: "8px",
-        boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-        
-        transform: visible ? "translateY(0)" : "translateY(-350px)",
+        position: isMobile ? 'fixed' : 'absolute',
+        bottom: isMobile ? '0' : '100px',
+        left: isMobile ? '0' : '20px',
+        right: isMobile ? '0' : 'unset',
+        top: isMobile ? 'unset' : '100px',
+        width: isMobile ? '100%' : '300px',
+        height: isMobile ? '' : 'fit-content',
+        maxWidth: isMobile ? '400px' : 'unset',
+        padding: '20px',
+        backgroundColor: '#fff',
+        color: '#000',
+        borderRadius: isMobile ? '16px 16px 0 0' : '8px',
+        boxShadow: isMobile
+          ? '0 -4px 12px rgba(0,0,0,0.1)'
+          : '0 4px 6px rgba(0,0,0,0.1)',
+        transform: visible ? 'translateY(0)' : isMobile ? 'translateY(100%)' : 'translateY(-350px)',
+        transition: 'transform 0.3s ease-in-out',
+        zIndex: 100,
+        margin: isMobile ? '0 auto' : '0',
         opacity: 1,
-        transition: "all 0.2s ease-in-out",
       }}
     >
-      <div style={{ textAlign: "center" }}>
+      <div style={{ textAlign: 'center' }}>
         <figure
           style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            width: "64px",
-            height: "64px",
-            backgroundColor: "#6366f1",
-            borderRadius: "50%",
-            margin: "0 auto 16px auto",
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '64px',
+            height: '64px',
+            backgroundColor: '#6366f1',
+            borderRadius: '50%',
+            margin: '0 auto 16px auto',
           }}
         >
           <svg
@@ -197,29 +202,32 @@ const NotificationCard = ({ slug, onClose }) => {
             width="48"
             height="48"
             fill="currentColor"
-
             viewBox="0 0 16 16"
-            style={{ color: "#fff" }}
+            style={{ color: '#fff' }}
           >
-            <path
-              d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"
-            ></path>
+            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
           </svg>
         </figure>
-        <h2 style={{ fontSize: "1.25rem", fontWeight: "bold", color: "#6366f1" }}>
+        <h2
+          style={{
+            fontSize: '1.5rem',
+            fontWeight: 'bold',
+            color: '#6366f1',
+          }}
+        >
           {slug}
         </h2>
-        <p style={{ color: "#6b7280" }}>Web Developer</p>
-        <div style={{ marginTop: "16px" }}>
+        <p style={{ color: '#6b7280' }}>Web Developer</p>
+        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <a
             href="#"
             style={{
-              padding: "8px 16px",
-              backgroundColor: "#6366f1",
-              color: "white",
-              borderRadius: "9999px",
-              textDecoration: "none",
-              marginRight: "8px",
+              marginTop: '16px',
+              padding: '10px 20px',
+              backgroundColor: '#6366f1',
+              color: 'white',
+              borderRadius: '9999px',
+              textDecoration: 'none',
             }}
           >
             Contact
@@ -227,11 +235,12 @@ const NotificationCard = ({ slug, onClose }) => {
           <a
             href="#"
             style={{
-              padding: "8px 16px",
-              backgroundColor: "#d1d5db",
-              color: "#000",
-              borderRadius: "9999px",
-              textDecoration: "none",
+              marginTop: '16px',
+              padding: '10px 20px',
+              backgroundColor: '#d1d5db',
+              color: '#000',
+              borderRadius: '9999px',
+              textDecoration: 'none',
             }}
           >
             Portfolio
@@ -239,23 +248,20 @@ const NotificationCard = ({ slug, onClose }) => {
           <button
             onClick={handleClose}
             style={{
-              marginTop: "20px",
-              padding: "8px 16px",
-              backgroundColor: "red",
-              color: "white",
-             width: "75%",
-              borderRadius: "9999px",
-              textDecoration: "none",
+              marginTop: '16px',
+              padding: '10px 20px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              borderRadius: '9999px',
+              textDecoration: 'none',
+              border: 'none',
             }}
           >
-            Fechar
+            Close
           </button>
         </div>
       </div>
-
-
-
     </div>
-
   );
 };
+
