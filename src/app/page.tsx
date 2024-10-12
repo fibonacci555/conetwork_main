@@ -1,8 +1,9 @@
 import Image from "next/image";
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
+import { Button } from "@/components/ui/button";
 import netImage from '/images/net.jpg';
 import logo from '/images/logo.png';
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { SignedIn, SignInButton, SignUpButton } from "@clerk/nextjs";
 import TypingAnimation from "@/components/ui/typing-animation";
 import Link from "next/link";
 import { OrbitingCirclesDemo } from "@/components/Rotating";
@@ -10,8 +11,10 @@ import { OrbitingCirclesDemo } from "@/components/Rotating";
 export default function Home() {
   return (
     <>
-    <nav className="height-full flex justify-center items-center absolute top-5 left-0 right-0">
+    <nav className="height-full flex justify-between items-center absolute top-5 left-0 right-0 mx-[100px]">
       <Image src={logo} alt="Logo" width={200} height={200} />
+      <SignedIn>
+      <a href="/conetwork" className="m-l-0"><Button> My Conetwork </Button></a></SignedIn>
     </nav>
 
     <Box

@@ -13,21 +13,60 @@ from django.shortcuts import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 
 
+class UserConnectionsView(APIView):
+    
+
+    def get(self, request, user_id):
+        user_profile = get_object_or_404(UserProfile, user_id=user_id)
+        connections = user_profile.connects.all()
+        serializer = UserProfileSerializer(connections, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def delete(self, request, user_id, connection_id):
+        user_profile = get_object_or_404(UserProfile, user_id=user_id)
+        connection = get_object_or_404(UserProfile, user_id=connection_id)
+
+        # Remove the connection from the user's connections
+        user_profile.connects.remove(connection)
+        return Response({'message': 'Connection removed successfully.'}, status=status.HTTP_200_OK)
+
+    def put(self, request, user_id, connection_id):
+        user_profile = get_object_or_404(UserProfile, user_id=user_id)
+        connection = get_object_or_404(UserProfile, user_id=connection_id)
+
+        if not connection.user_id.startswith('manual'):
+            return Response({'error': 'Cannot edit this connection.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = UserProfileSerializer(connection, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Connection updated successfully.', 'connection': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class UserConnectionsCountView(APIView):
-    permission_classes = [IsAuthenticated]
-    print(permission_classes)
+
     def get(self, request, user_id):
+        print(f"User making the request: {request.user}")  # Debugging statement
+
+        # Optional: Ensure that users can only access their own connection count
+        
         user_profile = get_object_or_404(UserProfile, user_id=user_id)
         connections_count = user_profile.connects.count()
         return Response({'connections_count': connections_count}, status=status.HTTP_200_OK)
 
 
-
 class AddManualConnectView(APIView):
+    def get(self, request):
+        return Response({'message': 'This is a GET request'}, status=status.HTTP_200_OK)
+    
+    
     def post(self, request):
+        
         # Extract the current user's ID from the headers (after being authenticated by the middleware)
-        current_user_id = request.headers.get('User-Id')
+      
+        current_user_id = request.data.get("user_id")
         current_user = get_object_or_404(UserProfile, user_id=current_user_id)
 
         # Generate a unique user_id for the new profile

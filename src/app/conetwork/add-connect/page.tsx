@@ -6,18 +6,20 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { PlusCircle, Upload, X } from 'lucide-react'
 import axios from 'axios'
+import { useAuth } from '@clerk/nextjs'
 
 const AddConnects = () => {
+    const { getToken, userId } = useAuth();
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [newConnection, setNewConnection] = useState({
         firstName: "",
@@ -33,40 +35,48 @@ const AddConnects = () => {
         if (newConnection.firstName.trim() === "") {
             alert("First Name is required.");
             return;
+        } else if (newConnection.lastName.trim() === "") {
+            alert("Last Name is required.");
+            return;
+        } else if (newConnection.phoneNumber.trim() === "") {
+            alert("Phone Number is required.");
+            return;
+        } else if (newConnection.knowledges.trim() === "") {
+            alert("At least one knowledge is required.");
+            return;
         }
-    
-        try {
-            const token = await getToken();
-            await axios.post(
-                'http://localhost:8000/api/add-manual-connect/',
-                {
-                    first_name: newConnection.firstName,
-                    last_name: newConnection.lastName,
-                    phone_number: newConnection.phoneNumber,
-                    knowledges: newConnection.knowledges, // Comma-separated list of knowledges
+        
+
+        const token = await getToken();
+        await axios.post(
+            'http://localhost:8000/api/add-manual-connect/',
+            {
+                user_id: userId,
+                first_name: newConnection.firstName,
+                last_name: newConnection.lastName,
+                phone_number: newConnection.phoneNumber,
+                knowledges: newConnection.knowledges, // Comma-separated list of knowledges
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
                 },
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
-    
-            // Reset form and close dialog
-            setNewConnection({
-                firstName: "",
-                lastName: "",
-                phoneNumber: "",
-                knowledges: "",
-                photo: null,
-            });
-            setIsDialogOpen(false);
-    
-            // Optionally, refetch connections or update state with the new connection
-            console.log("New manual connection added successfully");
-        } catch (error) {
-            console.error("Erro ao adicionar a conexão manual:", error);
-        }
+            }
+        );
+
+        // Reset form and close dialog
+        setNewConnection({
+            firstName: "",
+            lastName: "",
+            phoneNumber: "",
+            knowledges: "",
+            photo: null,
+        });
+        setIsDialogOpen(false);
+
+        // Optionally, refetch connections or update state with the new connection
+        console.log("New manual connection added successfully");
+
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,7 +172,7 @@ const AddConnects = () => {
                                         <Input
                                             id="firstName"
                                             value={newConnection.firstName}
-                                            onChange={(e) => setNewConnection({...newConnection, firstName: e.target.value})}
+                                            onChange={(e) => setNewConnection({ ...newConnection, firstName: e.target.value })}
                                             className="col-span-3"
                                         />
                                     </div>
@@ -173,7 +183,7 @@ const AddConnects = () => {
                                         <Input
                                             id="lastName"
                                             value={newConnection.lastName}
-                                            onChange={(e) => setNewConnection({...newConnection, lastName: e.target.value})}
+                                            onChange={(e) => setNewConnection({ ...newConnection, lastName: e.target.value })}
                                             className="col-span-3"
                                         />
                                     </div>
@@ -184,7 +194,7 @@ const AddConnects = () => {
                                         <Input
                                             id="phoneNumber"
                                             value={newConnection.phoneNumber}
-                                            onChange={(e) => setNewConnection({...newConnection, phoneNumber: e.target.value})}
+                                            onChange={(e) => setNewConnection({ ...newConnection, phoneNumber: e.target.value })}
                                             className="col-span-3"
                                         />
                                     </div>
@@ -195,7 +205,7 @@ const AddConnects = () => {
                                         <Textarea
                                             id="knowledges"
                                             value={newConnection.knowledges}
-                                            onChange={(e) => setNewConnection({...newConnection, knowledges: e.target.value})}
+                                            onChange={(e) => setNewConnection({ ...newConnection, knowledges: e.target.value })}
                                             placeholder="Enter knowledges (comma-separated)"
                                             className="col-span-3"
                                         />
