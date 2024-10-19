@@ -1,5 +1,7 @@
 from django.urls import path
-from .views import AddManualConnectView, UserConnectionsCountView, UserConnectionsView, UserProfileView,  KnowledgeView, SendFriendRequestView, RespondToFriendRequestView, ListFriendRequestsView
+from django.conf.urls.static import static
+from django.conf import settings
+from .views import AddManualConnectView, UserConnectionsCountView, UserConnectionsView, UserProfileView,  KnowledgeView, SendFriendRequestView, RespondToFriendRequestView, ListFriendRequestsView, UserSearchAPIView
 
 urlpatterns = [
     path('users/', UserProfileView.as_view(), name='user_profile'),
@@ -11,7 +13,9 @@ urlpatterns = [
     path('add-manual-connect/', AddManualConnectView.as_view(), name='add_manual_connect'),
     path('users/connections-count/<str:user_id>', UserConnectionsCountView.as_view(), name='user_connections_count'),
     path('users/connections/<str:user_id>', UserConnectionsView.as_view(), name='user_connections'),
-    
+    path('accounts/search-users/', UserSearchAPIView.as_view(), name='search-users'),
     path('users/connections/<str:user_id>/<str:connection_id>/', UserConnectionsView.as_view(), name='user_connection_detail'),
 
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

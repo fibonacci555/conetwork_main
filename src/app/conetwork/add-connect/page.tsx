@@ -26,12 +26,51 @@ const AddConnects = () => {
         lastName: "",
         phoneNumber: "",
         knowledges: "",
-        photo: null as File | null
+        profile_photo: null as File | null
     })
     const [photoPreview, setPhotoPreview] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [searchInput, setSearchInput] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+
+
+    // Função para realizar a busca
+    const performSearch = async () => {
+        setIsLoading(true);
+        try {
+            const token = await getToken();
+            console.log(token)
+            const response = await axios.get('http://localhost:8000/api/accounts/search-users/', {
+                params: { query: searchInput, user_id: userId },
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            setSearchResults(response.data);
+        } catch (error) {
+            console.error('Erro ao realizar a busca:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Debounce da busca
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchInput.trim() !== '') {
+                performSearch();
+            } else {
+                setSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchInput]);
 
     const handleAddConnection = async () => {
+        // Validações existentes
         if (newConnection.firstName.trim() === "") {
             alert("First Name is required.");
             return;
@@ -45,38 +84,51 @@ const AddConnects = () => {
             alert("At least one knowledge is required.");
             return;
         }
-        
 
-        const token = await getToken();
-        await axios.post(
-            'http://localhost:8000/api/add-manual-connect/',
-            {
-                user_id: userId,
-                first_name: newConnection.firstName,
-                last_name: newConnection.lastName,
-                phone_number: newConnection.phoneNumber,
-                knowledges: newConnection.knowledges, // Comma-separated list of knowledges
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+        try {
+            const token = await getToken();
+
+            // Cria o objeto FormData
+            const formData = new FormData();
+            formData.append('user_id', userId);
+            formData.append('first_name', newConnection.firstName);
+            formData.append('last_name', newConnection.lastName);
+            formData.append('phone_number', newConnection.phoneNumber);
+            formData.append('knowledges', newConnection.knowledges); // Lista separada por vírgulas
+
+            if (newConnection.photo) {
+                formData.append('photo', newConnection.photo);
             }
-        );
 
-        // Reset form and close dialog
-        setNewConnection({
-            firstName: "",
-            lastName: "",
-            phoneNumber: "",
-            knowledges: "",
-            photo: null,
-        });
-        setIsDialogOpen(false);
+            // Envia a requisição com FormData
+            await axios.post(
+                'http://localhost:8000/api/add-manual-connect/',
+                formData,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'multipart/form-data',
+                    },
+                }
+            );
 
-        // Optionally, refetch connections or update state with the new connection
-        console.log("New manual connection added successfully");
+            // Resetar o formulário e fechar o diálogo
+            setNewConnection({
+                firstName: "",
+                lastName: "",
+                phoneNumber: "",
+                knowledges: "",
+                profile_photo: null,
+            });
+            setPhotoPreview(null);
+            setIsDialogOpen(false);
 
+            // Atualizar a lista de conexões ou refetch se necessário
+            console.log("Nova conexão adicionada com sucesso");
+        } catch (error) {
+            console.error("Erro ao adicionar conexão:", error);
+            alert("Houve um erro ao adicionar a conexão. Por favor, tente novamente.");
+        }
     };
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,6 +151,62 @@ const AddConnects = () => {
         }
     }
 
+    const handleAddUser = async (targetUserId) => {
+        try {
+            const token = await getToken();
+            await axios.post('http://localhost:8000/api/send-friend-request/', {
+                from_user_id: userId,
+                to_user_id: targetUserId,
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            alert('Friend request sent!');
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            alert('Failed to send friend request.');
+        }
+    };
+    const [friendRequests, setFriendRequests] = useState([]);
+
+    const fetchFriendRequests = async () => {
+        try {
+            const token = await getToken();
+            const response = await axios.get(`http://localhost:8000/api/friend-requests/${userId}/`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            setFriendRequests(response.data);
+        } catch (error) {
+            console.error('Error fetching friend requests:', error);
+        }
+    };
+
+    useEffect(() => {
+        fetchFriendRequests();
+    }, []);
+
+    const respondToFriendRequest = async (requestId, action) => {
+        try {
+            const token = await getToken();
+            await axios.post(`http://localhost:8000/api/friend-request/${requestId}/`, {
+                action: action,
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            // Atualizar a lista de pedidos após a ação
+            fetchFriendRequests();
+            alert(`Friend request ${action}ed.`);
+        } catch (error) {
+            console.error(`Error ${action}ing friend request:`, error);
+            alert(`Failed to ${action} friend request.`);
+        }
+    };
+
     return (
         <NavBar>
             <div className="container min-w-[97%] px-4 py-10 md:px-6 lg:py-16 bg-white">
@@ -113,45 +221,35 @@ const AddConnects = () => {
                                 <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder="Search for friends..."
+                                    placeholder="Buscar amigos..."
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
                                     className="w-full rounded-lg border border-input bg-background pl-12 pr-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                                 />
                             </form>
                         </div>
+                        {/* Exibir estado de carregamento */}
+                        {isLoading && <p>Carregando...</p>}
+                        {/* Exibir resultados da busca */}
                         <div className="grid gap-4">
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>JD</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">John Doe</div>
-                                    <div className="text-sm text-muted-foreground">@johndoe</div>
+                            {searchResults.map((user) => (
+                                <div key={user.id} className="flex items-center gap-4 rounded-lg bg-muted p-4">
+                                    <Avatar className="h-12 w-12">
+                                        <AvatarImage src={user.profile_image || '/placeholder-user.jpg'} alt="User Avatar" />
+                                        <AvatarFallback>
+                                            {user.first_name?.[0]}
+                                            {user.last_name?.[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <div className="font-medium">
+                                            {user.first_name} {user.last_name}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">@{user.username}</div>
+                                    </div>
+                                    <Button variant="outline" onClick={() => handleAddUser(user.id)}>Adicionar</Button>
                                 </div>
-                                <Button variant="outline">Add</Button>
-                            </div>
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>JA</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">Jane Appleseed</div>
-                                    <div className="text-sm text-muted-foreground">@janeappleseed</div>
-                                </div>
-                                <Button variant="outline">Add</Button>
-                            </div>
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>BO</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">Bob Odenkirk</div>
-                                    <div className="text-sm text-muted-foreground">@bobodenkirk</div>
-                                </div>
-                                <Button variant="outline">Add</Button>
-                            </div>
+                            ))}
                         </div>
                         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                             <DialogTrigger asChild>
@@ -260,51 +358,31 @@ const AddConnects = () => {
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <h2 className="text-3xl font-bold tracking-tight">Notifications</h2>
-                            <p className="text-muted-foreground">View and respond to follow requests.</p>
+                            <p className="text-muted-foreground">View and respond to friend requests.</p>
                         </div>
                         <div className="grid gap-4">
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>SA</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">Sarah Anderson</div>
-                                    <div className="text-sm text-muted-foreground">Sent you a follow request</div>
+                            {friendRequests.map((request) => (
+                                <div key={request.id} className="flex items-center gap-4 rounded-lg bg-muted p-4">
+                                    <Avatar className="h-12 w-12">
+                                        <AvatarImage src={request.from_user.profile_photo || '/placeholder-user.jpg'} alt="User Avatar" />
+                                        <AvatarFallback>
+                                            {request.from_user.first_name?.[0]}
+                                            {request.from_user.last_name?.[0]}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1">
+                                        <div className="font-medium">
+                                            {request.from_user.first_name} {request.from_user.last_name}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">Sent you a friend request</div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <Button variant="outline" onClick={() => respondToFriendRequest(request.id, 'accept')}>Accept</Button>
+                                        <Button variant="ghost" onClick={() => respondToFriendRequest(request.id, 'decline')}>Decline</Button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Button variant="outline">Accept</Button>
-                                    <Button variant="ghost">Decline</Button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>MI</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">Michael Irvine</div>
-                                    <div className="text-sm text-muted-foreground">Sent you a follow request</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button variant="outline">Accept</Button>
-                                    <Button variant="ghost">Decline</Button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-4 rounded-lg bg-muted p-4">
-                                <Avatar className="h-12 w-12">
-                                    <AvatarImage src="/placeholder-user.jpg" alt="User Avatar" />
-                                    <AvatarFallback>EL</AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1">
-                                    <div className="font-medium">Emily Lau</div>
-                                    <div className="text-sm text-muted-foreground">Sent you a follow request</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <Button variant="outline">Accept</Button>
-                                    <Button variant="ghost">Decline</Button>
-                                </div>
-                            </div>
+                            ))}
+                            {friendRequests.length === 0 && <p>No new friend requests.</p>}
                         </div>
                     </div>
                 </div>

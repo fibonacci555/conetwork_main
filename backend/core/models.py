@@ -8,6 +8,8 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=255, blank=True, null=True)
     knowledges = models.JSONField(default=list, blank=True, null=True)  # Campo para armazenar conhecimentos (array de strings)
     connects = models.ManyToManyField('self', symmetrical=False, related_name='connections', blank=True)
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=False, null=False, default='profile_photos/default.png')
+
     
 
     @property
