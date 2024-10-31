@@ -162,7 +162,7 @@ const AddConnects = () => {
                     'Authorization': `Bearer ${token}`,
                 },
             });
-            alert('Friend request sent!');
+            
         } catch (error) {
             console.error('Error sending friend request:', error);
             alert('Failed to send friend request.');
@@ -235,11 +235,13 @@ const AddConnects = () => {
                             {searchResults.map((user) => (
                                 <div key={user.id} className="flex items-center gap-4 rounded-lg bg-muted p-4">
                                     <Avatar className="h-12 w-12">
-                                        <AvatarImage src={user.profile_image || '/placeholder-user.jpg'} alt="User Avatar" />
+                                        <AvatarImage src={user.profile_photo || '/placeholder-user.jpg'} alt="User Avatar" />
                                         <AvatarFallback>
                                             {user.first_name?.[0]}
                                             {user.last_name?.[0]}
                                         </AvatarFallback>
+                                        <AvatarFallback className="text-sm text-muted-foreground">@{user.username}</AvatarFallback>
+                                        <AvatarFallback className=""></AvatarFallback>
                                     </Avatar>
                                     <div className="flex-1">
                                         <div className="font-medium">
@@ -247,15 +249,17 @@ const AddConnects = () => {
                                         </div>
                                         <div className="text-sm text-muted-foreground">@{user.username}</div>
                                     </div>
-                                    <Button variant="outline" onClick={() => handleAddUser(user.id)}>Adicionar</Button>
+                                    <Button variant="outline" onClick={() => handleAddUser(user.id)}>Add</Button>
                                 </div>
                             ))}
-                        </div>
+                        </div><p>Not sure if your connect is already in the network? Dont worry, you can add it manually.</p>
                         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
+                            <DialogTrigger asChild> 
+                                
                                 <Button className="w-full">
+                                    
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Add Manual Connection
+                                    Add Manual Connect
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className="sm:max-w-[425px]">

@@ -20,19 +20,21 @@ from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 import requests
 import os
+from .decorators import ensure_user_profile
 
 User = get_user_model()
-
+clerk_secret_key = "sk_test_AXdvYfhBfFqutEoJ6M7fsUybc22tZRU2ShU5h7dS6Y"
 class UserSearchAPIView(APIView):
+    @ensure_user_profile
     def get(self, request):
         query = request.query_params.get('query', '')
         current_user_clerk_id = request.query_params.get('user_id')
-        print(query)
+        
         if not query:
             return Response({'error': 'Parâmetro de consulta ausente.'}, status=status.HTTP_400_BAD_REQUEST)
         
         clerk_api_url = 'https://api.clerk.dev/v1/users'
-        clerk_secret_key = "sk_test_AXdvYfhBfFqutEoJ6M7fsUybc22tZRU2ShU5h7dS6Y"
+        
         # Armazene sua Secret Key em uma variável de ambiente
 
         headers = {
@@ -42,6 +44,7 @@ class UserSearchAPIView(APIView):
 
         results = []
         user_ids = set()
+        print(UserProfile.objects.get(user_id=current_user_clerk_id).connects.all())
         
         search_fields = ['email_address', 'phone_number', 'username', 'first_name', 'last_name']
 
@@ -59,6 +62,7 @@ class UserSearchAPIView(APIView):
                         # Excluir o usuário atual dos resultados
                         if user['id'] == current_user_clerk_id:
                             continue
+                        
                         if user['id'] not in user_ids:
                             user_ids.add(user['id'])
                             email_addresses = user.get('email_addresses', [])
@@ -89,9 +93,8 @@ class UserSearchAPIView(APIView):
     
         return Response(results, status=status.HTTP_200_OK)
 
-# views.py
-
 class UserConnectionsView(APIView):
+    @ensure_user_profile
     def get(self, request, user_id):
         user_profile = get_object_or_404(UserProfile, user_id=user_id)
         connections = user_profile.connects.all()
@@ -129,12 +132,22 @@ class UserConnectionsView(APIView):
                     if response.status_code == 200:
                         user = response.json()
 
-                        # Extract necessary fields
+                        # Extract phone number and email from Clerk data
                         email_addresses = user.get('email_addresses', [])
                         email = email_addresses[0]['email_address'] if email_addresses else None
 
                         phone_numbers = user.get('phone_numbers', [])
+                        
                         phone_number = phone_numbers[0]['phone_number'] if phone_numbers else None
+                        
+
+                        # Fetch 'knowledges' from local database using user_id
+                        try:
+                            profile = UserProfile.objects.get(user_id=clerk_user_id)
+                            knowledges = profile.knowledges
+                        except UserProfile.DoesNotExist:
+                            # If no profile exists, 'knowledges' is empty
+                            knowledges = []
 
                         serialized_user = {
                             'user_id': user.get('id'),
@@ -144,8 +157,9 @@ class UserConnectionsView(APIView):
                             'phone_number': phone_number,
                             'username': user.get('username'),
                             'profile_photo': user.get('profile_image_url'),
-                            'knowledges': [],  # Clerk users may not have 'knowledges'
+                            'knowledges': knowledges,
                         }
+                        
                         serialized_connections.append(serialized_user)
                     else:
                         print(f'Failed to fetch user {clerk_user_id} from Clerk: {response.text}')
@@ -154,7 +168,7 @@ class UserConnectionsView(APIView):
                     continue  # Skip this user and continue with the next
 
         return Response(serialized_connections, status=status.HTTP_200_OK)
-
+    @ensure_user_profile
     def delete(self, request, user_id, connection_id):
         user_profile = get_object_or_404(UserProfile, user_id=user_id)
         connection = get_object_or_404(UserProfile, user_id=connection_id)
@@ -162,7 +176,7 @@ class UserConnectionsView(APIView):
         # Remove the connection from the user's connections
         user_profile.connects.remove(connection)
         return Response({'message': 'Connection removed successfully.'}, status=status.HTTP_200_OK)
-
+    @ensure_user_profile
     def put(self, request, user_id, connection_id):
         user_profile = get_object_or_404(UserProfile, user_id=user_id)
         connection = get_object_or_404(UserProfile, user_id=connection_id)
@@ -177,7 +191,7 @@ class UserConnectionsView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserConnectionsCountView(APIView):
-
+    @ensure_user_profile
     def get(self, request, user_id):
         print(f"User making the request: {request.user}")  # Debugging statement
 
@@ -188,9 +202,10 @@ class UserConnectionsCountView(APIView):
         return Response({'connections_count': connections_count}, status=status.HTTP_200_OK)
 
 class AddManualConnectView(APIView):
+    @ensure_user_profile
     def get(self, request):
         return Response({'message': 'This is a GET request'}, status=status.HTTP_200_OK)
-    
+    @ensure_user_profile
     def post(self, request):
         # Extrair o ID do usuário atual do payload
         current_user_id = request.data.get("user_id")
@@ -198,8 +213,7 @@ class AddManualConnectView(APIView):
 
         # Gerar um user_id único para o novo perfil
         new_user_id = f"manual_{random.randint(10000, 99999)}"
-        print(request.FILES)
-        print(request.data)
+        
         # Preparar os dados para o serializer
         new_connection_data = {
             "user_id": new_user_id,
@@ -211,12 +225,12 @@ class AddManualConnectView(APIView):
         }
         
         
-        print(new_connection_data)
+        
 
         serializer = UserProfileSerializer(data=new_connection_data)
         if serializer.is_valid():
             new_profile = serializer.save()
-            print("Newwwwww: ",new_profile.profile_photo)
+            
             # Adicionar a nova conexão às conexões do usuário atual
             current_user.connects.add(new_profile)
             current_user.save()  # Salvar as alterações no usuário atual
@@ -227,9 +241,9 @@ class AddManualConnectView(APIView):
                 request_scheme = request.scheme
                 request_host = request.get_host()
                 photo_url = f"{request_scheme}://{request_host}{new_profile.profile_photo.url}"
-                print("PHOTOOOO: ",photo_url)
+              
                 response_data["profile_photo"] = photo_url
-                print(response_data["profile_photo"])
+                
             else:
                 response_data["profile_photo"] = None
 
@@ -238,6 +252,7 @@ class AddManualConnectView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class KnowledgeView(APIView):
+    @ensure_user_profile
     def get(self, request):
         # Obter o user_id do middleware
         user_id = getattr(request, 'user_id', None)
@@ -249,7 +264,7 @@ class KnowledgeView(APIView):
             return Response(user_profile.knowledges, status=status.HTTP_200_OK)
         except UserProfile.DoesNotExist:
             return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
+    @ensure_user_profile
     def put(self, request):
         # Obter o user_id do middleware
         user_id = getattr(request, 'user_id', None)
@@ -266,7 +281,7 @@ class KnowledgeView(APIView):
             return Response({'message': 'Knowledge added successfully', 'knowledges': user_profile.knowledges}, status=status.HTTP_200_OK)
         except UserProfile.DoesNotExist:
             return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
+    @ensure_user_profile
     def delete(self, request):
         # Obter o user_id do middleware
         user_id = getattr(request, 'user_id', None)
@@ -286,6 +301,7 @@ class KnowledgeView(APIView):
             return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
 
 class UserProfileView(APIView):
+    @ensure_user_profile
     def get(self, request):
         user_id = getattr(request, 'user_id', None)
         if not user_id:
@@ -297,7 +313,7 @@ class UserProfileView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except UserProfile.DoesNotExist:
             return Response({'error': 'Profile not found'}, status=status.HTTP_404_NOT_FOUND)
-
+    @ensure_user_profile
     def post(self, request):
         serializer = UserProfileSerializer(data=request.data)
         if serializer.is_valid():
@@ -306,6 +322,7 @@ class UserProfileView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class SendFriendRequestView(APIView):
+    @ensure_user_profile
     def post(self, request):
         from_user_id = request.data.get('from_user_id')
         to_user_id = request.data.get('to_user_id')
@@ -326,6 +343,7 @@ class SendFriendRequestView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class RespondToFriendRequestView(APIView):
+    @ensure_user_profile
     def post(self, request, request_id):
         action = request.data.get('action')
         friend_request = get_object_or_404(FriendRequest, id=request_id)
@@ -347,8 +365,11 @@ class RespondToFriendRequestView(APIView):
             return Response({'error': 'Invalid action.'}, status=status.HTTP_400_BAD_REQUEST)
 
 class ListFriendRequestsView(APIView):
+    @ensure_user_profile
     def get(self, request, user_id):
         user = get_object_or_404(UserProfile, user_id=user_id)
         friend_requests = FriendRequest.objects.filter(to_user=user, status='pending')
         serializer = FriendRequestSerializer(friend_requests, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+

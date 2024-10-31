@@ -21,28 +21,27 @@ export default function Profile() {
   useEffect(() => {
     const setAxiosDefaults = async () => {
       const token = await getToken()
-      axios.defaults.baseURL = 'http://localhost:8000'
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    }
-    setAxiosDefaults()
-  }, [getToken])
-
-  useEffect(() => {
-    const fetchKnowledges = async () => {
-      try {
-        const response = await axios.get('/api/knowledges/')
-        if (response.data) {
-          setKnowledges(response.data)
-        }
-      } catch (error) {
-        console.error("Error fetching knowledges:", error)
+      if (token) {
+        axios.defaults.baseURL = 'http://localhost:8000'
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       }
     }
 
-    if (user?.id) {
-      fetchKnowledges()
+    if (user) {
+      setAxiosDefaults().then(fetchKnowledges)
     }
-  }, [user])
+  }, [user, getToken])
+
+  const fetchKnowledges = async () => {
+    try {
+      const response = await axios.get('/api/knowledges/')
+      if (response.data) {
+        setKnowledges(response.data)
+      }
+    } catch (error) {
+      console.error("Error fetching knowledges:", error)
+    }
+  }
 
   const handleAddKnowledge = async () => {
     if (input.trim() === "") return
@@ -71,13 +70,9 @@ export default function Profile() {
       <div className="container mx-auto px-4 py-8">
         <Card className="w-full max-w-3xl mx-auto">
           <CardHeader>
-          
             <div className="flex items-center justify-between">
-              
-                <CardTitle className="text-2xl font-bold">{profileTitle}</CardTitle>
-                <UserButton />
-              
-              
+              <CardTitle className="text-2xl font-bold">{profileTitle}</CardTitle>
+              <UserButton />
             </div>
           </CardHeader>
           <CardContent>

@@ -1,93 +1,79 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { useTheme } from "next-themes";
-import {
-  Cloud,
-  fetchSimpleIcons,
-  renderSimpleIcon,
-  SimpleIcon,
-} from "react-icon-cloud";
+import { Cloud } from "react-icon-cloud";
+// Import Avatar components from the correct library
+import * as Avatar from "@radix-ui/react-avatar"; // Ensure you're using Radix UI for Avatar components
+import { BorderAllIcon } from "@radix-ui/react-icons";
 
-// Defina as opções do cloud fora do componente para evitar recriações
 const cloudOptions = {
   reverse: true,
   depth: 1,
   wheelZoom: false,
-  imageScale: 2,
+  imageScale: 1,
   activeCursor: "pointer",
   tooltip: "native",
   initial: [0.1, -0.1],
   clickToFront: 500,
   tooltipDelay: 0,
   outlineColour: "#0000",
-  maxSpeed: 0.015,
-  minSpeed: 0.01,
+  maxSpeed: 0.02,
+  minSpeed: 0.005,
+  weight: true,
+  imageRadius: "50%",
+  shadow: "#000"
 };
 
-export type DynamicCloudProps = {
-  iconSlugs: string[];
+export type IconCloudProps = {
+  connections: any[];
 };
 
-export default function IconCloud({ iconSlugs }: DynamicCloudProps) {
-  const [selectedIconSlug, setSelectedIconSlug] = useState<string | null>(null);
+export default function IconCloud({ connections }: IconCloudProps) {
+  const [selectedConnection, setSelectedConnection] = useState<any | null>(
+    null
+  );
 
-  // Memoize the onIconClick function to prevent unnecessary re-renders
-  const handleIconClick = useCallback((slug: string) => {
-    setSelectedIconSlug(slug);
+  const handleIconClick = useCallback((connection: any) => {
+    setSelectedConnection(connection);
   }, []);
 
-  // Function to close the notification
   const closeNotification = () => {
-    setSelectedIconSlug(null);
+    setSelectedConnection(null);
   };
 
   return (
-    <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-      {/* Centraliza o icon cloud */}
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div
         style={{
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
           height: "100%",
+          
         }}
       >
-        <CloudContainer iconSlugs={iconSlugs} onIconClick={handleIconClick} />
+        <CloudContainer
+          connections={connections}
+          onIconClick={handleIconClick}
+        />
       </div>
-      {/* Exibe o card de notificação no topo direito */}
-      {selectedIconSlug && (
-        <NotificationCard slug={selectedIconSlug} onClose={closeNotification} />
+      {selectedConnection && (
+        <NotificationCard
+          connection={selectedConnection}
+          onClose={closeNotification}
+        />
       )}
     </div>
   );
 }
 
-// Componente memoizado para evitar re-renders desnecessários
 const CloudContainer = React.memo(function CloudContainer({
-  iconSlugs,
+  connections,
   onIconClick,
 }) {
-  const { theme } = useTheme();
-  const [data, setData] = useState(null);
-  const iconsRef = useRef<any[]>([]);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchSimpleIcons({ slugs: iconSlugs }).then((iconsData) => {
-      if (isMounted) {
-        setData(iconsData);
-
-        iconsRef.current = Object.values(iconsData.simpleIcons).map((icon) =>
-          renderCustomIcon(icon, theme || "light", icon.slug, onIconClick)
-        );
-      }
-    });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [iconSlugs, theme, onIconClick]);
+  const icons = connections.map((connection) =>
+    renderCustomIcon(connection, onIconClick)
+  );
 
   return (
     // @ts-ignore
@@ -97,164 +83,171 @@ const CloudContainer = React.memo(function CloudContainer({
         style: {
           width: "100%",
           height: "100%",
+          borderRadius: "50%",
         },
       }}
     >
-      {iconsRef.current}
+      {icons}
     </Cloud>
   );
 });
 
 export const renderCustomIcon = (
-  icon: SimpleIcon,
-  theme: string,
-  slug: string,
-  onIconClick: (slug: string) => void
+  connection,
+  onIconClick
 ) => {
-  const bgHex = theme === "light" ? "#f3f2ef" : "#080510";
-  const fallbackHex = theme === "light" ? "#6e6e73" : "#ffffff";
-  const minContrastRatio = theme === "dark" ? 2 : 1.2;
+  const [imgSrc, setImgSrc] = useState(null);
 
-  const iconElement = renderSimpleIcon({
-    icon,
-    bgHex,
-    fallbackHex,
-    minContrastRatio,
-    size: 42,
-    aProps: {
-      href: "#",
-      title: slug,
-      onClick: (e: any) => {
+  useEffect(() => {
+    const fetchImage = async () => {
+      try {
+        const response = await fetch(connection.profile_photo, {
+          mode: 'cors',
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        setImgSrc(url);
+      } catch (error) {
+        console.error('Error fetching image:', error);
+        setImgSrc('/default.png'); // Fallback image
+      }
+    };
+
+    if (connection.profile_photo) {
+      fetchImage();
+    } else {
+      setImgSrc('/default.png');
+    }
+  }, [connection.profile_photo]);
+
+  return (
+    <a
+      href="#"
+      title={`${connection.first_name} ${connection.last_name}`}
+      onClick={(e) => {
         e.preventDefault();
-        onIconClick(slug);
-      },
-      style: { cursor: "pointer" },
-    },
-  });
-
-  return iconElement;
+        onIconClick(connection);
+      }}
+      className="cursor-pointer inline-block bg-red shadow-sm"
+    >
+      
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={`${connection.first_name} ${connection.last_name}`}
+            width={150}
+            height={150}
+            
+            
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-600 font-bold">
+            {connection.first_name.charAt(0)}
+            {connection.last_name.charAt(0)}
+          </div>
+        )}
+      
+    </a>
+  );
 };
 
-// Novo componente NotificationCard
-const NotificationCard = ({ slug, onClose }) => {
+const NotificationCard = ({ connection, onClose }) => {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    // Reinicia a animação toda vez que o slug muda
     setVisible(false);
     const timer = setTimeout(() => {
       setVisible(true);
-    }, 10); // Pequeno delay para reiniciar a animação
+    }, 10);
 
     return () => clearTimeout(timer);
-  }, [slug]);
+  }, [connection]);
 
   const handleClose = () => {
-    // Anima a saída
     setVisible(false);
-    // Remove o card após a animação de saída
     setTimeout(() => {
       onClose();
-    }, 300); // Tempo deve corresponder à duração da animação
+    }, 300);
   };
-  const isMobile = window.innerWidth <= 768;
+
+  const isMobile =
+    typeof window !== "undefined" ? window.innerWidth <= 768 : false;
 
   return (
     <div
       style={{
-        position: isMobile ? 'fixed' : 'absolute',
-        bottom: isMobile ? '0' : '100px',
-        left: isMobile ? '0' : '20px',
-        right: isMobile ? '0' : 'unset',
-        top: isMobile ? 'unset' : '100px',
-        width: isMobile ? '100%' : '300px',
-        height: isMobile ? '' : 'fit-content',
-        maxWidth: isMobile ? '400px' : 'unset',
-        padding: '20px',
-        backgroundColor: '#fff',
-        color: '#000',
-        borderRadius: isMobile ? '16px 16px 0 0' : '8px',
+        position: isMobile ? "fixed" : "absolute",
+        bottom: isMobile ? "0" : "100px",
+        left: isMobile ? "0" : "20px",
+        right: isMobile ? "0" : "unset",
+        top: isMobile ? "unset" : "100px",
+        width: isMobile ? "100%" : "300px",
+        maxWidth: isMobile ? "400px" : "unset",
+        padding: "20px",
+        backgroundColor: "#fff",
+        color: "#000",
+        borderRadius: isMobile ? "16px 16px 0 0" : "8px",
         boxShadow: isMobile
-          ? '0 -4px 12px rgba(0,0,0,0.1)'
-          : '0 4px 6px rgba(0,0,0,0.1)',
-        transform: visible ? 'translateY(0)' : isMobile ? 'translateY(100%)' : 'translateY(-350px)',
-        transition: 'transform 0.3s ease-in-out',
+          ? "0 -4px 12px rgba(0,0,0,0.1)"
+          : "0 4px 6px rgba(0,0,0,0.1)",
+        transform: visible
+          ? "translateY(0)"
+          : isMobile
+          ? "translateY(100%)"
+          : "translateY(-350px)",
+        transition: "transform 0.3s ease-in-out",
         zIndex: 100,
-        margin: isMobile ? '0 auto' : '0',
+        margin: isMobile ? "0 auto" : "0",
         opacity: 1,
       }}
     >
-      <div style={{ textAlign: 'center' }}>
-        <figure
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: '64px',
-            height: '64px',
-            backgroundColor: '#6366f1',
-            borderRadius: '50%',
-            margin: '0 auto 16px auto',
-          }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="48"
-            height="48"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-            style={{ color: '#fff' }}
-          >
-            <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
-          </svg>
-        </figure>
+      <div style={{ textAlign: "center" }}>
+        <div className="flex justify-center mb-4">
+          <Avatar.Root className="w-16 h-16 border-2 border-black rounded-full overflow-hidden">
+            <Avatar.Image
+              src={connection.profile_photo || "/default.png"}
+              alt={`${connection.first_name} ${connection.last_name}`}
+              className="object-cover w-full h-full"
+            />
+            <Avatar.Fallback className="flex items-center justify-center bg-gray-200 text-gray-600 font-bold">
+              {connection.first_name.charAt(0)}
+              {connection.last_name.charAt(0)}
+            </Avatar.Fallback>
+          </Avatar.Root>
+        </div>
         <h2
           style={{
-            fontSize: '1.5rem',
-            fontWeight: 'bold',
-            color: '#6366f1',
+            fontSize: "1.5rem",
+            fontWeight: "bold",
+            color: "#6366f1",
           }}
         >
-          {slug}
+          {connection.first_name} {connection.last_name}
         </h2>
-        <p style={{ color: '#6b7280' }}>Web Developer</p>
-        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <a
-            href="#"
-            style={{
-              marginTop: '16px',
-              padding: '10px 20px',
-              backgroundColor: '#6366f1',
-              color: 'white',
-              borderRadius: '9999px',
-              textDecoration: 'none',
-            }}
-          >
-            Contact
-          </a>
-          <a
-            href="#"
-            style={{
-              marginTop: '16px',
-              padding: '10px 20px',
-              backgroundColor: '#d1d5db',
-              color: '#000',
-              borderRadius: '9999px',
-              textDecoration: 'none',
-            }}
-          >
-            Portfolio
-          </a>
+        <p style={{ color: "#6b7280" }}>{connection.knowledges}</p>
+        <div
+          style={{
+            marginTop: "16px",
+            display: "flex",
+            justifyContent: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Additional buttons or links */}
           <button
             onClick={handleClose}
             style={{
-              marginTop: '16px',
-              padding: '10px 20px',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              borderRadius: '9999px',
-              textDecoration: 'none',
-              border: 'none',
+              marginTop: "16px",
+              padding: "10px 20px",
+              backgroundColor: "#ef4444",
+              color: "white",
+              borderRadius: "9999px",
+              textDecoration: "none",
+              border: "none",
             }}
           >
             Close
@@ -264,4 +257,3 @@ const NotificationCard = ({ slug, onClose }) => {
     </div>
   );
 };
-

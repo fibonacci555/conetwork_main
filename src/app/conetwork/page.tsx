@@ -1,4 +1,4 @@
-"use client"
+"use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,153 +9,6 @@ import IconCloud from '@/components/ui/icon-cloud';
 import { PlaceholdersAndVanishInput } from '@/components/ui/placeholders-and-vanish-input';
 import NavBar from '@/components/NavBar';
 
-const slugs = [
-  "svelte",
-  "unity",
-  "beautifulsoup",
-  "dart",
-  "bitbucket",
-  "junit",
-  "html5",
-  "python",
-  "redux",
-  "nginx",
-  "logstash",
-  "kafka",
-  "grafana",
-  "swagger",
-  "postgresql",
-  "opencv",
-  "sass",
-  "vagrant",
-  "gitlab",
-  "spark",
-  "react",
-  "swift",
-  "java",
-  "mongodb",
-  "notion",
-  "figma",
-  "elasticsearch",
-  "phaser",
-  "zeromq",
-  "mockito",
-  "firebase",
-  "word",
-  "jira",
-  "rabbitmq",
-  "nextdotjs",
-  "matplotlib",
-  "testinglibrary",
-  "redis",
-  "mqtt",
-  "openapi",
-  "kivy",
-  "pillow",
-  "ffmpeg",
-  "terraform",
-  "flutter",
-  "graylog",
-  "docker",
-  "scrapy",
-  "babel",
-  "excel",
-  "django",
-  "blazor",
-  "nodedotjs",
-  "databricks",
-  "pandas",
-  "chai",
-  "dynamodb",
-  "cassandra",
-  "godot",
-  "androidstudio",
-  "apache",
-  "scikit-learn",
-  "visualstudiocode",
-  "gcp",
-  "eslint",
-  "express",
-  "c",
-  "android",
-  "oracle",
-  "prettier",
-  "javascript",
-  "amazonaws",
-  "mysql",
-  "numpy",
-  "prometheus",
-  "bootstrap",
-  "pygame",
-  "github",
-  "gstreamer",
-  "redshift",
-  "git",
-  "flask",
-  "luigi",
-  "bokeh",
-  "mocha",
-  "ruby",
-  "css3",
-  "travisci",
-  "prisma",
-  "gulp",
-  "fastapi",
-  "heroku",
-  "kotlin",
-  "ansible",
-  "puppet",
-  "objective-c",
-  "plotly",
-  "vuejs",
-  "tornado",
-  "sonarqube",
-  "efcore",
-  "sql",
-  "couchbase",
-  "cherrypy",
-  "tensorflow",
-  "dash",
-  "springboot",
-  "qt",
-  "unrealengine",
-  "snowflake",
-  "grunt",
-  "circleci",
-  "vercel",
-  "jest",
-  "c++",
-  "neo4j",
-  "laravel",
-  "powerbi",
-  "uikit",
-  "jenkins",
-  "typescript",
-  "less",
-  "hadoop",
-  "pytorch",
-  "xstate",
-  "d3js",
-  "graphql",
-  "selenium",
-  "ruby-on-rails",
-  "apollo",
-  "coredata",
-  "azure",
-  "xamarin",
-  "tailwindcss",
-  "kubernetes",
-  "angular",
-  "kibana",
-  "threejs",
-  "babylonjs",
-  "cypress",
-  "airflow",
-  "sqlserver",
-  "webpack"
-];
-
-
 const Conetwork = () => {
   const [connectionCount, setConnectionCount] = useState<number | null>(null);
   const [showConnectionsList, setShowConnectionsList] = useState(false);
@@ -163,14 +16,53 @@ const Conetwork = () => {
   const [editingConnectionId, setEditingConnectionId] = useState<string | null>(null);
   const [editedConnection, setEditedConnection] = useState<any>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { getToken, userId } = useAuth();
+  const { isLoaded, isSignedIn, getToken, userId } = useAuth();
 
   const buttonRef = useRef(null);
   const connectionsListRef = useRef(null);
 
+  // Utility function to introduce a delay
+  const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  useEffect(() => {
+    const fetchConnections = async () => {
+      if (isLoaded && isSignedIn && userId) {
+        await delay(2000); // Wait for 2 seconds to ensure token is valid
+
+        try {
+          const token = await getToken();
+          if (!token) {
+            console.error('Token not found');
+            return;
+          }
+
+          const response = await axios.get(
+            `http://localhost:8000/api/users/connections/${userId}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.data) {
+            setConnectionsList(response.data);
+            setConnectionCount(response.data.length);
+          }
+        } catch (error) {
+          console.error('Error fetching connections:', error);
+        }
+      }
+    };
+
+    fetchConnections();
+  }, [isLoaded, isSignedIn, userId]);
+
   useEffect(() => {
     const fetchConnectionCount = async () => {
-      if (userId) {
+      if (isLoaded && isSignedIn && userId) {
+        await delay(2000); // Wait for 2 seconds to ensure token is valid
+
         try {
           const token = await getToken();
           if (!token) {
@@ -196,14 +88,15 @@ const Conetwork = () => {
     };
 
     fetchConnectionCount();
-  }, [userId, getToken]);
+  }, [isLoaded, isSignedIn, userId]);
 
   const handleConnectionsClick = async () => {
     setShowConnectionsList(!showConnectionsList);
-    console.log(connectionsList)
 
     // Fetch connections if not already fetched
-    if (connectionsList.length === 0) {
+    if (connectionsList.length === 0 && isLoaded && isSignedIn && userId) {
+      await delay(2000); // Wait for 2 seconds to ensure token is valid
+
       try {
         const token = await getToken();
         if (!token) {
@@ -222,7 +115,6 @@ const Conetwork = () => {
 
         if (response.data) {
           setConnectionsList(response.data);
-
         }
       } catch (error) {
         console.error('Error fetching connections:', error);
@@ -232,28 +124,32 @@ const Conetwork = () => {
 
   // Function to handle deleting a connection
   const handleDeleteConnection = async (connectionId: string) => {
-    try {
-      const token = await getToken();
-      if (!token) {
-        console.error('Token not found');
-        return;
-      }
+    if (isLoaded && isSignedIn && userId) {
+      await delay(2000); // Wait for 2 seconds to ensure token is valid
 
-      await axios.delete(
-        `http://localhost:8000/api/users/connections/${userId}/${connectionId}/`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.error('Token not found');
+          return;
         }
-      );
 
-      // Remove the connection from the list
-      setConnectionsList(connectionsList.filter((conn) => conn.user_id !== connectionId));
-      // Update the connection count
-      setConnectionCount(connectionCount! - 1);
-    } catch (error) {
-      console.error('Error deleting connection:', error);
+        await axios.delete(
+          `http://localhost:8000/api/users/connections/${userId}/${connectionId}/`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        // Remove the connection from the list
+        setConnectionsList(connectionsList.filter((conn) => conn.user_id !== connectionId));
+        // Update the connection count
+        setConnectionCount(connectionCount! - 1);
+      } catch (error) {
+        console.error('Error deleting connection:', error);
+      }
     }
   };
 
@@ -274,35 +170,39 @@ const Conetwork = () => {
 
   // Function to save the edited connection
   const handleSaveConnection = async () => {
-    try {
-      const token = await getToken();
-      if (!token) {
-        console.error('Token not found');
-        return;
-      }
+    if (isLoaded && isSignedIn && userId) {
+      await delay(5000); // Wait for 2 seconds to ensure token is valid
 
-      await axios.put(
-        `http://localhost:8000/api/users/connections/${userId}/${editingConnectionId}/`,
-        editedConnection,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      try {
+        const token = await getToken();
+        if (!token) {
+          console.error('Token not found');
+          return;
         }
-      );
 
-      // Update the connections list
-      setConnectionsList(
-        connectionsList.map((conn) =>
-          conn.user_id === editingConnectionId ? editedConnection : conn
-        )
-      );
+        await axios.put(
+          `http://localhost:8000/api/users/connections/${userId}/${editingConnectionId}/`,
+          editedConnection,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-      setIsModalOpen(false);
-      setEditingConnectionId(null);
-      setEditedConnection({});
-    } catch (error) {
-      console.error('Error updating connection:', error);
+        // Update the connections list
+        setConnectionsList(
+          connectionsList.map((conn) =>
+            conn.user_id === editingConnectionId ? editedConnection : conn
+          )
+        );
+
+        setIsModalOpen(false);
+        setEditingConnectionId(null);
+        setEditedConnection({});
+      } catch (error) {
+        console.error('Error updating connection:', error);
+      }
     }
   };
 
@@ -347,7 +247,11 @@ const Conetwork = () => {
             </div>
             {/* Componente com IconCloud */}
             <div className="relative flex size-full items-center justify-center overflow-hidden rounded-lg border bg-background px-20 pb-20 pt-8">
-              <IconCloud iconSlugs={slugs} />
+              {connectionsList.length > 0 ? (
+                <IconCloud connections={connectionsList} />
+              ) : (
+                <p>Loading connections...</p>
+              )}
               {/* Displaying the Connection Count */}
               {connectionCount !== null && (
                 <>
@@ -378,21 +282,38 @@ const Conetwork = () => {
                               >
                                 <div className="flex items-center flex-1">
                                   {/* Avatar da Conexão */}
-                                  <Avatar className="h-12 w-12">
+                                  <Avatar className="h-12 w-12 rounded-full border-1 border-black overflow-hidden">
                                     <AvatarImage
-                                      src={connection.profile_photo ? connection.profile_photo : '/default.png'}
+                                      src={
+                                        connection.profile_photo
+                                          ? connection.profile_photo
+                                          : '/default.png'
+                                      }
                                       alt={`${connection.first_name} ${connection.last_name}`}
+                                      className="object-cover"
                                     />
-                                    
                                   </Avatar>
 
                                   {/* Informações da Conexão */}
                                   <div className="ml-4">
                                     <div className="font-medium">
-                                      {connection.first_name} {connection.last_name} - {connection.phone}
+                                      {connection.first_name} {connection.last_name} |{' '}
+                                      {connection.phone != null ? (
+                                        <>
+                                          +351 {connection.phone}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {connection.phone_number.slice(0, 4)}
+                                          {' '}
+                                          {connection.phone_number.slice(4)}
+                                        </>
+                                      )}
+
+
                                     </div>
                                     <p className="text-xs text-muted-foreground">
-                                      {connection.knowledges}
+
                                     </p>
                                   </div>
                                 </div>

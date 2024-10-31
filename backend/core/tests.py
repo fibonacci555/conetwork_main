@@ -20,6 +20,6 @@ class ClerkAuthMiddlewareTest(TestCase):
         # Configura o cabeçalho com o token inválido
         self.client.credentials(HTTP_AUTHORIZATION=self.invalid_token)
         response = self.client.get('/api/users/')  # Endereço da tua API protegida
-
+        
         # Espera um status 401 se o token for inválido
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
